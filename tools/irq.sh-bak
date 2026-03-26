@@ -1,0 +1,16 @@
+#!/bin/bash
+eth1=$1
+cnt=$2
+bus=`ethtool -i ${eth1} | grep "bus-info" | awk '{print $2}'`
+ethtool -L $eth1 combined $cnt
+
+irq1=`cat /proc/interrupts | grep -E ${bus} | head -n $cnt | awk -F ':' '{print $1}'`
+irq1=`echo $irq1`
+cpulist=({64..71})
+c=0
+for irq in $irq1
+do
+    echo ${cpulist[c]} "->" $irq
+    echo ${cpulist[c]} > /proc/irq/$irq/smp_affinity_list
+    let "c++"
+done

@@ -1,0 +1,14 @@
+set hive.execution.engine=tez;
+set hive.cbo.enable=true;
+set hive.exec.compress.intermediate=true;
+set hive.tez.container.size=7168;
+set tez.am.resouce.memory.mb=7168;
+set tez.task.resource.memory.mb=7168;
+set tez.am.container.reuse.enabled=true;
+set hive.exec.reducers.max=500;
+
+
+set hive.map.aggr=true;
+set hive.vectorized.execution.enabled=true;
+set hive.auto.convert.join=true;
+set hive.auto.convert.join.noconditionaltask=true;
