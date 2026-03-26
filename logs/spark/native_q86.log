@@ -1,0 +1,33 @@
+24/04/26 16:47:14 WARN Utils: Your hostname, vcloud-10-13 resolves to a loopback address: 127.0.0.1; using 21.21.36.153 instead (on interface eno1)
+24/04/26 16:47:14 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+24/04/26 16:47:14 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+24/04/26 16:47:16 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+Spark master: yarn, Application Id: application_1714105099579_0194
+24/04/26 16:47:34 WARN SessionState: METASTORE_FILTER_HOOK will be ignored, since hive.security.authorization.manager is set to instance of HiveAuthorizerFactory.
+24/04/26 16:47:38 WARN package: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+24/04/26 16:47:38 WARN InsertAdaptiveSparkPlan: spark.sql.adaptive.enabled is enabled but is not supported for query: TakeOrderedAndProject(limit=100, orderBy=[lochierarchy#1 DESC NULLS LAST,CASE WHEN (lochierarchy#1 = 0) THEN i_category#94 END ASC NULLS FIRST,rank_within_parent#2 ASC NULLS FIRST], output=[total_sum#0,i_category#94,i_class#95,lochierarchy#1,rank_within_parent#2])
++- Project [total_sum#0, i_category#94, i_class#95, lochierarchy#1, rank_within_parent#2]
+   +- Window [rank(_w3#110) windowspecdefinition(_w1#108, _w2#109, _w3#110 DESC NULLS LAST, specifiedwindowframe(RowFrame, unboundedpreceding$(), currentrow$())) AS rank_within_parent#2], [_w1#108, _w2#109], [_w3#110 DESC NULLS LAST]
+      +- HashAggregate(keys=[i_category#94, i_class#95, spark_grouping_id#93L], functions=[sum(UnscaledValue(ws_net_paid#33))], output=[total_sum#0, i_category#94, i_class#95, lochierarchy#1, _w1#108, _w2#109, _w3#110])
+         +- HashAggregate(keys=[i_category#94, i_class#95, spark_grouping_id#93L], functions=[partial_sum(UnscaledValue(ws_net_paid#33))], output=[i_category#94, i_class#95, spark_grouping_id#93L, sum#211L])
+            +- Expand [List(ws_net_paid#33, i_category#79, i_class#77, 0), List(ws_net_paid#33, i_category#79, null, 1), List(ws_net_paid#33, null, null, 3)], [ws_net_paid#33, i_category#94, i_class#95, spark_grouping_id#93L]
+               +- Project [ws_net_paid#33, i_category#79, i_class#77]
+                  +- BroadcastHashJoin [ws_item_sk#7L], [i_item_sk#67L], Inner, BuildRight, false
+                     :- Project [ws_item_sk#7L, ws_net_paid#33]
+                     :  +- BroadcastHashJoin [ws_sold_date_sk#38L], [d_date_sk#39L], Inner, BuildRight, false
+                     :     :- Project [ws_item_sk#7L, ws_net_paid#33, ws_sold_date_sk#38L]
+                     :     :  +- Filter isnotnull(ws_item_sk#7L)
+                     :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.web_sales[ws_item_sk#7L,ws_net_paid#33,ws_sold_date_sk#38L] Batched: true, DataFilters: [isnotnull(ws_item_sk#7L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(ws_sold_date_sk#38L), dynamicpruning#209 [ws_sold_date_sk#38L]], PushedFilters: [IsNotNull(ws_item_sk)], ReadSchema: struct<ws_item_sk:bigint,ws_net_paid:decimal(7,2)>
+                     :     :           +- Project [d_date_sk#39L]
+                     :     :              +- Filter (((isnotnull(d_month_seq#42) AND (d_month_seq#42 >= 1200)) AND (d_month_seq#42 <= 1211)) AND isnotnull(d_date_sk#39L))
+                     :     :                 +- Relation[d_date_sk#39L,d_date_id#40,d_date#41,d_month_seq#42,d_week_seq#43,d_quarter_seq#44,d_year#45,d_dow#46,d_moy#47,d_dom#48,d_qoy#49,d_fy_year#50,d_fy_quarter_seq#51,d_fy_week_seq#52,d_day_name#53,d_quarter_name#54,d_holiday#55,d_weekend#56,d_following_holiday#57,d_first_dom#58,d_last_dom#59,d_same_day_ly#60,d_same_day_lq#61,d_current_day#62,... 4 more fields] orc
+                     :     +- Project [d_date_sk#39L]
+                     :        +- Filter (((isnotnull(d_month_seq#42) AND (d_month_seq#42 >= 1200)) AND (d_month_seq#42 <= 1211)) AND isnotnull(d_date_sk#39L))
+                     :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#39L,d_month_seq#42] Batched: true, DataFilters: [isnotnull(d_month_seq#42), (d_month_seq#42 >= 1200), (d_month_seq#42 <= 1211), isnotnull(d_date_..., Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_month_seq), GreaterThanOrEqual(d_month_seq,1200), LessThanOrEqual(d_month_seq,1211),..., ReadSchema: struct<d_date_sk:bigint,d_month_seq:int>
+                     +- Project [i_item_sk#67L, i_class#77, i_category#79]
+                        +- Filter isnotnull(i_item_sk#67L)
+                           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.item[i_item_sk#67L,i_class#77,i_category#79] Batched: true, DataFilters: [isnotnull(i_item_sk#67L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(i_item_sk)], ReadSchema: struct<i_item_sk:bigint,i_class:string,i_category:string>
+.
+Time taken: 16.478 seconds, Fetched 100 row(s)

@@ -1,0 +1,116 @@
+24/04/26 16:37:15 WARN Utils: Your hostname, vcloud-10-13 resolves to a loopback address: 127.0.0.1; using 21.21.36.153 instead (on interface eno1)
+24/04/26 16:37:15 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+24/04/26 16:37:15 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+24/04/26 16:37:17 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+Spark master: yarn, Application Id: application_1714105099579_0185
+24/04/26 16:37:36 WARN SessionState: METASTORE_FILTER_HOOK will be ignored, since hive.security.authorization.manager is set to instance of HiveAuthorizerFactory.
+24/04/26 16:37:47 WARN package: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+24/04/26 16:37:47 WARN InsertAdaptiveSparkPlan: spark.sql.adaptive.enabled is enabled but is not supported for query: TakeOrderedAndProject(limit=100, orderBy=[channel#462 ASC NULLS FIRST,id#463L ASC NULLS FIRST], output=[channel#462,id#463L,sales#11,returns#12,profit#13])
++- HashAggregate(keys=[channel#462, id#463L, spark_grouping_id#461L], functions=[sum(sales#14), sum(returns#2), sum(profit#454)], output=[channel#462, id#463L, sales#11, returns#12, profit#13])
+   +- HashAggregate(keys=[channel#462, id#463L, spark_grouping_id#461L], functions=[partial_sum(sales#14), partial_sum(returns#2), partial_sum(profit#454)], output=[channel#462, id#463L, spark_grouping_id#461L, sum#718, isEmpty#719, sum#720, isEmpty#721, sum#722, isEmpty#723])
+      +- Expand [List(sales#14, returns#2, profit#454, channel#0, id#1L, 0), List(sales#14, returns#2, profit#454, channel#0, null, 1), List(sales#14, returns#2, profit#454, null, null, 3)], [sales#14, returns#2, profit#454, channel#462, id#463L, spark_grouping_id#461L]
+         +- Union
+            :- Project [sales#14, coalesce(returns#16, 0.00) AS returns#2, CheckOverflow((promote_precision(cast(profit#15 as decimal(18,2))) - promote_precision(cast(coalesce(profit_loss#17, 0.00) as decimal(18,2)))), DecimalType(18,2), true) AS profit#454, store channel AS channel#0, s_store_sk#77L AS id#1L]
+            :  +- SortMergeJoin [s_store_sk#77L], [s_store_sk#154L], LeftOuter
+            :     :- HashAggregate(keys=[s_store_sk#77L], functions=[sum(UnscaledValue(ss_ext_sales_price#40)), sum(UnscaledValue(ss_net_profit#47))], output=[s_store_sk#77L, sales#14, profit#15])
+            :     :  +- HashAggregate(keys=[s_store_sk#77L], functions=[partial_sum(UnscaledValue(ss_ext_sales_price#40)), partial_sum(UnscaledValue(ss_net_profit#47))], output=[s_store_sk#77L, sum#726L, sum#727L])
+            :     :     +- Project [ss_ext_sales_price#40, ss_net_profit#47, s_store_sk#77L]
+            :     :        +- BroadcastHashJoin [ss_store_sk#32L], [s_store_sk#77L], Inner, BuildRight, false
+            :     :           :- Project [ss_store_sk#32L, ss_ext_sales_price#40, ss_net_profit#47]
+            :     :           :  +- BroadcastHashJoin [ss_sold_date_sk#48L], [d_date_sk#49L], Inner, BuildRight, false
+            :     :           :     :- Project [ss_store_sk#32L, ss_ext_sales_price#40, ss_net_profit#47, ss_sold_date_sk#48L]
+            :     :           :     :  +- Filter isnotnull(ss_store_sk#32L)
+            :     :           :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store_sales[ss_store_sk#32L,ss_ext_sales_price#40,ss_net_profit#47,ss_sold_date_sk#48L] Batched: true, DataFilters: [isnotnull(ss_store_sk#32L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(ss_sold_date_sk#48L), dynamicpruning#706 [ss_sold_date_sk#48L]], PushedFilters: [IsNotNull(ss_store_sk)], ReadSchema: struct<ss_store_sk:bigint,ss_ext_sales_price:decimal(7,2),ss_net_profit:decimal(7,2)>
+            :     :           :     :           +- Project [d_date_sk#49L]
+            :     :           :     :              +- Filter (((isnotnull(d_date#51) AND (d_date#51 >= 11172)) AND (d_date#51 <= 11202)) AND isnotnull(d_date_sk#49L))
+            :     :           :     :                 +- Relation[d_date_sk#49L,d_date_id#50,d_date#51,d_month_seq#52,d_week_seq#53,d_quarter_seq#54,d_year#55,d_dow#56,d_moy#57,d_dom#58,d_qoy#59,d_fy_year#60,d_fy_quarter_seq#61,d_fy_week_seq#62,d_day_name#63,d_quarter_name#64,d_holiday#65,d_weekend#66,d_following_holiday#67,d_first_dom#68,d_last_dom#69,d_same_day_ly#70,d_same_day_lq#71,d_current_day#72,... 4 more fields] orc
+            :     :           :     +- Project [d_date_sk#49L]
+            :     :           :        +- Filter (((isnotnull(d_date#51) AND (d_date#51 >= 11172)) AND (d_date#51 <= 11202)) AND isnotnull(d_date_sk#49L))
+            :     :           :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#49L,d_date#51] Batched: true, DataFilters: [isnotnull(d_date#51), (d_date#51 >= 11172), (d_date#51 <= 11202), isnotnull(d_date_sk#49L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+            :     :           +- Project [s_store_sk#77L]
+            :     :              +- Filter isnotnull(s_store_sk#77L)
+            :     :                 +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store[s_store_sk#77L] Batched: true, DataFilters: [isnotnull(s_store_sk#77L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(s_store_sk)], ReadSchema: struct<s_store_sk:bigint>
+            :     +- HashAggregate(keys=[s_store_sk#154L], functions=[sum(UnscaledValue(sr_return_amt#116)), sum(UnscaledValue(sr_net_loss#124))], output=[s_store_sk#154L, returns#16, profit_loss#17])
+            :        +- HashAggregate(keys=[s_store_sk#154L], functions=[partial_sum(UnscaledValue(sr_return_amt#116)), partial_sum(UnscaledValue(sr_net_loss#124))], output=[s_store_sk#154L, sum#730L, sum#731L])
+            :           +- Project [sr_return_amt#116, sr_net_loss#124, s_store_sk#154L]
+            :              +- BroadcastHashJoin [sr_store_sk#112L], [s_store_sk#154L], Inner, BuildRight, false
+            :                 :- Project [sr_store_sk#112L, sr_return_amt#116, sr_net_loss#124]
+            :                 :  +- BroadcastHashJoin [sr_returned_date_sk#125L], [d_date_sk#126L], Inner, BuildRight, false
+            :                 :     :- Project [sr_store_sk#112L, sr_return_amt#116, sr_net_loss#124, sr_returned_date_sk#125L]
+            :                 :     :  +- Filter isnotnull(sr_store_sk#112L)
+            :                 :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store_returns[sr_store_sk#112L,sr_return_amt#116,sr_net_loss#124,sr_returned_date_sk#125L] Batched: true, DataFilters: [isnotnull(sr_store_sk#112L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(sr_returned_date_sk#125L), dynamicpruning#707 [sr_returned_date_sk#125L]], PushedFilters: [IsNotNull(sr_store_sk)], ReadSchema: struct<sr_store_sk:bigint,sr_return_amt:decimal(7,2),sr_net_loss:decimal(7,2)>
+            :                 :     :           +- Project [d_date_sk#126L]
+            :                 :     :              +- Filter (((isnotnull(d_date#128) AND (d_date#128 >= 11172)) AND (d_date#128 <= 11202)) AND isnotnull(d_date_sk#126L))
+            :                 :     :                 +- Relation[d_date_sk#126L,d_date_id#127,d_date#128,d_month_seq#129,d_week_seq#130,d_quarter_seq#131,d_year#132,d_dow#133,d_moy#134,d_dom#135,d_qoy#136,d_fy_year#137,d_fy_quarter_seq#138,d_fy_week_seq#139,d_day_name#140,d_quarter_name#141,d_holiday#142,d_weekend#143,d_following_holiday#144,d_first_dom#145,d_last_dom#146,d_same_day_ly#147,d_same_day_lq#148,d_current_day#149,... 4 more fields] orc
+            :                 :     +- Project [d_date_sk#126L]
+            :                 :        +- Filter (((isnotnull(d_date#128) AND (d_date#128 >= 11172)) AND (d_date#128 <= 11202)) AND isnotnull(d_date_sk#126L))
+            :                 :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#126L,d_date#128] Batched: true, DataFilters: [isnotnull(d_date#128), (d_date#128 >= 11172), (d_date#128 <= 11202), isnotnull(d_date_sk#126L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+            :                 +- Project [s_store_sk#154L]
+            :                    +- Filter isnotnull(s_store_sk#154L)
+            :                       +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store[s_store_sk#154L] Batched: true, DataFilters: [isnotnull(s_store_sk#154L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(s_store_sk)], ReadSchema: struct<s_store_sk:bigint>
+            :- Project [sales#18, returns#20, CheckOverflow((promote_precision(cast(profit#19 as decimal(18,2))) - promote_precision(cast(profit_loss#21 as decimal(18,2)))), DecimalType(18,2), true) AS profit#6, catalog channel AS channel#4, cs_call_center_sk#193L AS id#5L]
+            :  +- BroadcastNestedLoopJoin BuildRight, Inner
+            :     :- HashAggregate(keys=[cs_call_center_sk#193L], functions=[sum(UnscaledValue(cs_ext_sales_price#205)), sum(UnscaledValue(cs_net_profit#215))], output=[cs_call_center_sk#193L, sales#18, profit#19])
+            :     :  +- HashAggregate(keys=[cs_call_center_sk#193L], functions=[partial_sum(UnscaledValue(cs_ext_sales_price#205)), partial_sum(UnscaledValue(cs_net_profit#215))], output=[cs_call_center_sk#193L, sum#734L, sum#735L])
+            :     :     +- Project [cs_call_center_sk#193L, cs_ext_sales_price#205, cs_net_profit#215]
+            :     :        +- BroadcastHashJoin [cs_sold_date_sk#216L], [d_date_sk#217L], Inner, BuildRight, false
+            :     :           :- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.catalog_sales[cs_call_center_sk#193L,cs_ext_sales_price#205,cs_net_profit#215,cs_sold_date_sk#216L] Batched: true, DataFilters: [], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(cs_sold_date_sk#216L), dynamicpruning#708 [cs_sold_date_sk#216L]], PushedFilters: [], ReadSchema: struct<cs_call_center_sk:bigint,cs_ext_sales_price:decimal(7,2),cs_net_profit:decimal(7,2)>
+            :     :           :     +- Project [d_date_sk#217L]
+            :     :           :        +- Filter (((isnotnull(d_date#219) AND (d_date#219 >= 11172)) AND (d_date#219 <= 11202)) AND isnotnull(d_date_sk#217L))
+            :     :           :           +- Relation[d_date_sk#217L,d_date_id#218,d_date#219,d_month_seq#220,d_week_seq#221,d_quarter_seq#222,d_year#223,d_dow#224,d_moy#225,d_dom#226,d_qoy#227,d_fy_year#228,d_fy_quarter_seq#229,d_fy_week_seq#230,d_day_name#231,d_quarter_name#232,d_holiday#233,d_weekend#234,d_following_holiday#235,d_first_dom#236,d_last_dom#237,d_same_day_ly#238,d_same_day_lq#239,d_current_day#240,... 4 more fields] orc
+            :     :           +- Project [d_date_sk#217L]
+            :     :              +- Filter (((isnotnull(d_date#219) AND (d_date#219 >= 11172)) AND (d_date#219 <= 11202)) AND isnotnull(d_date_sk#217L))
+            :     :                 +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#217L,d_date#219] Batched: true, DataFilters: [isnotnull(d_date#219), (d_date#219 >= 11172), (d_date#219 <= 11202), isnotnull(d_date_sk#217L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+            :     +- HashAggregate(keys=[], functions=[sum(UnscaledValue(cr_return_amount#262)), sum(UnscaledValue(cr_net_loss#270))], output=[returns#20, profit_loss#21])
+            :        +- HashAggregate(keys=[], functions=[partial_sum(UnscaledValue(cr_return_amount#262)), partial_sum(UnscaledValue(cr_net_loss#270))], output=[sum#738L, sum#739L])
+            :           +- Project [cr_return_amount#262, cr_net_loss#270]
+            :              +- BroadcastHashJoin [cr_returned_date_sk#271L], [d_date_sk#272L], Inner, BuildRight, false
+            :                 :- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.catalog_returns[cr_return_amount#262,cr_net_loss#270,cr_returned_date_sk#271L] Batched: true, DataFilters: [], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(cr_returned_date_sk#271L), dynamicpruning#709 [cr_returned_date_sk#271L]], PushedFilters: [], ReadSchema: struct<cr_return_amount:decimal(7,2),cr_net_loss:decimal(7,2)>
+            :                 :     +- Project [d_date_sk#272L]
+            :                 :        +- Filter (((isnotnull(d_date#274) AND (d_date#274 >= 11172)) AND (d_date#274 <= 11202)) AND isnotnull(d_date_sk#272L))
+            :                 :           +- Relation[d_date_sk#272L,d_date_id#273,d_date#274,d_month_seq#275,d_week_seq#276,d_quarter_seq#277,d_year#278,d_dow#279,d_moy#280,d_dom#281,d_qoy#282,d_fy_year#283,d_fy_quarter_seq#284,d_fy_week_seq#285,d_day_name#286,d_quarter_name#287,d_holiday#288,d_weekend#289,d_following_holiday#290,d_first_dom#291,d_last_dom#292,d_same_day_ly#293,d_same_day_lq#294,d_current_day#295,... 4 more fields] orc
+            :                 +- Project [d_date_sk#272L]
+            :                    +- Filter (((isnotnull(d_date#274) AND (d_date#274 >= 11172)) AND (d_date#274 <= 11202)) AND isnotnull(d_date_sk#272L))
+            :                       +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#272L,d_date#274] Batched: true, DataFilters: [isnotnull(d_date#274), (d_date#274 >= 11172), (d_date#274 <= 11202), isnotnull(d_date_sk#272L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+            +- Project [sales#22, coalesce(returns#24, 0.00) AS returns#9, CheckOverflow((promote_precision(cast(profit#23 as decimal(18,2))) - promote_precision(cast(coalesce(profit_loss#25, 0.00) as decimal(18,2)))), DecimalType(18,2), true) AS profit#455, web channel AS channel#704, wp_web_page_sk#362L AS id#705L]
+               +- SortMergeJoin [wp_web_page_sk#362L], [wp_web_page_sk#428L], LeftOuter
+                  :- HashAggregate(keys=[wp_web_page_sk#362L], functions=[sum(UnscaledValue(ws_ext_sales_price#322)), sum(UnscaledValue(ws_net_profit#332))], output=[wp_web_page_sk#362L, sales#22, profit#23])
+                  :  +- HashAggregate(keys=[wp_web_page_sk#362L], functions=[partial_sum(UnscaledValue(ws_ext_sales_price#322)), partial_sum(UnscaledValue(ws_net_profit#332))], output=[wp_web_page_sk#362L, sum#742L, sum#743L])
+                  :     +- Project [ws_ext_sales_price#322, ws_net_profit#332, wp_web_page_sk#362L]
+                  :        +- BroadcastHashJoin [ws_web_page_sk#311L], [wp_web_page_sk#362L], Inner, BuildRight, false
+                  :           :- Project [ws_web_page_sk#311L, ws_ext_sales_price#322, ws_net_profit#332]
+                  :           :  +- BroadcastHashJoin [ws_sold_date_sk#333L], [d_date_sk#334L], Inner, BuildRight, false
+                  :           :     :- Project [ws_web_page_sk#311L, ws_ext_sales_price#322, ws_net_profit#332, ws_sold_date_sk#333L]
+                  :           :     :  +- Filter isnotnull(ws_web_page_sk#311L)
+                  :           :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.web_sales[ws_web_page_sk#311L,ws_ext_sales_price#322,ws_net_profit#332,ws_sold_date_sk#333L] Batched: true, DataFilters: [isnotnull(ws_web_page_sk#311L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(ws_sold_date_sk#333L), dynamicpruning#710 [ws_sold_date_sk#333L]], PushedFilters: [IsNotNull(ws_web_page_sk)], ReadSchema: struct<ws_web_page_sk:bigint,ws_ext_sales_price:decimal(7,2),ws_net_profit:decimal(7,2)>
+                  :           :     :           +- Project [d_date_sk#334L]
+                  :           :     :              +- Filter (((isnotnull(d_date#336) AND (d_date#336 >= 11172)) AND (d_date#336 <= 11202)) AND isnotnull(d_date_sk#334L))
+                  :           :     :                 +- Relation[d_date_sk#334L,d_date_id#335,d_date#336,d_month_seq#337,d_week_seq#338,d_quarter_seq#339,d_year#340,d_dow#341,d_moy#342,d_dom#343,d_qoy#344,d_fy_year#345,d_fy_quarter_seq#346,d_fy_week_seq#347,d_day_name#348,d_quarter_name#349,d_holiday#350,d_weekend#351,d_following_holiday#352,d_first_dom#353,d_last_dom#354,d_same_day_ly#355,d_same_day_lq#356,d_current_day#357,... 4 more fields] orc
+                  :           :     +- Project [d_date_sk#334L]
+                  :           :        +- Filter (((isnotnull(d_date#336) AND (d_date#336 >= 11172)) AND (d_date#336 <= 11202)) AND isnotnull(d_date_sk#334L))
+                  :           :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#334L,d_date#336] Batched: true, DataFilters: [isnotnull(d_date#336), (d_date#336 >= 11172), (d_date#336 <= 11202), isnotnull(d_date_sk#334L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+                  :           +- Project [wp_web_page_sk#362L]
+                  :              +- Filter isnotnull(wp_web_page_sk#362L)
+                  :                 +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.web_page[wp_web_page_sk#362L] Batched: true, DataFilters: [isnotnull(wp_web_page_sk#362L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(wp_web_page_sk)], ReadSchema: struct<wp_web_page_sk:bigint>
+                  +- HashAggregate(keys=[wp_web_page_sk#428L], functions=[sum(UnscaledValue(wr_return_amt#390)), sum(UnscaledValue(wr_net_loss#398))], output=[wp_web_page_sk#428L, returns#24, profit_loss#25])
+                     +- HashAggregate(keys=[wp_web_page_sk#428L], functions=[partial_sum(UnscaledValue(wr_return_amt#390)), partial_sum(UnscaledValue(wr_net_loss#398))], output=[wp_web_page_sk#428L, sum#746L, sum#747L])
+                        +- Project [wr_return_amt#390, wr_net_loss#398, wp_web_page_sk#428L]
+                           +- BroadcastHashJoin [wr_web_page_sk#386L], [wp_web_page_sk#428L], Inner, BuildRight, false
+                              :- Project [wr_web_page_sk#386L, wr_return_amt#390, wr_net_loss#398]
+                              :  +- BroadcastHashJoin [wr_returned_date_sk#399L], [d_date_sk#400L], Inner, BuildRight, false
+                              :     :- Project [wr_web_page_sk#386L, wr_return_amt#390, wr_net_loss#398, wr_returned_date_sk#399L]
+                              :     :  +- Filter isnotnull(wr_web_page_sk#386L)
+                              :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.web_returns[wr_web_page_sk#386L,wr_return_amt#390,wr_net_loss#398,wr_returned_date_sk#399L] Batched: true, DataFilters: [isnotnull(wr_web_page_sk#386L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(wr_returned_date_sk#399L), dynamicpruning#711 [wr_returned_date_sk#399L]], PushedFilters: [IsNotNull(wr_web_page_sk)], ReadSchema: struct<wr_web_page_sk:bigint,wr_return_amt:decimal(7,2),wr_net_loss:decimal(7,2)>
+                              :     :           +- Project [d_date_sk#400L]
+                              :     :              +- Filter (((isnotnull(d_date#402) AND (d_date#402 >= 11172)) AND (d_date#402 <= 11202)) AND isnotnull(d_date_sk#400L))
+                              :     :                 +- Relation[d_date_sk#400L,d_date_id#401,d_date#402,d_month_seq#403,d_week_seq#404,d_quarter_seq#405,d_year#406,d_dow#407,d_moy#408,d_dom#409,d_qoy#410,d_fy_year#411,d_fy_quarter_seq#412,d_fy_week_seq#413,d_day_name#414,d_quarter_name#415,d_holiday#416,d_weekend#417,d_following_holiday#418,d_first_dom#419,d_last_dom#420,d_same_day_ly#421,d_same_day_lq#422,d_current_day#423,... 4 more fields] orc
+                              :     +- Project [d_date_sk#400L]
+                              :        +- Filter (((isnotnull(d_date#402) AND (d_date#402 >= 11172)) AND (d_date#402 <= 11202)) AND isnotnull(d_date_sk#400L))
+                              :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#400L,d_date#402] Batched: true, DataFilters: [isnotnull(d_date#402), (d_date#402 >= 11172), (d_date#402 <= 11202), isnotnull(d_date_sk#400L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_date), GreaterThanOrEqual(d_date,2000-08-03), LessThanOrEqual(d_date,2000-09-02), Is..., ReadSchema: struct<d_date_sk:bigint,d_date:date>
+                              +- Project [wp_web_page_sk#428L]
+                                 +- Filter isnotnull(wp_web_page_sk#428L)
+                                    +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.web_page[wp_web_page_sk#428L] Batched: true, DataFilters: [isnotnull(wp_web_page_sk#428L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(wp_web_page_sk)], ReadSchema: struct<wp_web_page_sk:bigint>
+.
+Time taken: 24.345 seconds, Fetched 100 row(s)

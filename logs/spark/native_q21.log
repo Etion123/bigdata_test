@@ -1,0 +1,8 @@
+24/04/26 15:15:13 WARN Utils: Your hostname, vcloud-10-13 resolves to a loopback address: 127.0.0.1; using 21.21.36.153 instead (on interface eno1)
+24/04/26 15:15:13 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+24/04/26 15:15:14 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+24/04/26 15:15:16 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+Spark master: yarn, Application Id: application_1714105099579_0126
+Time taken: 12.095 seconds, Fetched 100 row(s)

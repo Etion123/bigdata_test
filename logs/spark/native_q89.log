@@ -1,0 +1,38 @@
+24/04/26 16:50:57 WARN Utils: Your hostname, vcloud-10-13 resolves to a loopback address: 127.0.0.1; using 21.21.36.153 instead (on interface eno1)
+24/04/26 16:50:57 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+24/04/26 16:50:58 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+24/04/26 16:51:00 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+Spark master: yarn, Application Id: application_1714105099579_0197
+24/04/26 16:51:17 WARN SessionState: METASTORE_FILTER_HOOK will be ignored, since hive.security.authorization.manager is set to instance of HiveAuthorizerFactory.
+24/04/26 16:51:22 WARN package: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+24/04/26 16:51:22 WARN InsertAdaptiveSparkPlan: spark.sql.adaptive.enabled is enabled but is not supported for query: TakeOrderedAndProject(limit=100, orderBy=[CheckOverflow((promote_precision(cast(sum_sales#0 as decimal(22,6))) - promote_precision(cast(avg_monthly_sales#1 as decimal(22,6)))), DecimalType(22,6), true) ASC NULLS FIRST,s_store_name#80 ASC NULLS FIRST], output=[i_category#14,i_class#12,i_brand#10,s_store_name#80,s_company_name#92,d_moy#55,sum_sales#0,avg_monthly_sales#1])
++- Project [i_category#14, i_class#12, i_brand#10, s_store_name#80, s_company_name#92, d_moy#55, sum_sales#0, avg_monthly_sales#1]
+   +- Filter (CASE WHEN NOT (avg_monthly_sales#1 = 0.000000) THEN CheckOverflow((promote_precision(abs(CheckOverflow((promote_precision(cast(sum_sales#0 as decimal(22,6))) - promote_precision(cast(avg_monthly_sales#1 as decimal(22,6)))), DecimalType(22,6), true))) / promote_precision(cast(avg_monthly_sales#1 as decimal(22,6)))), DecimalType(38,16), true) ELSE null END > 0.1000000000000000)
+      +- Window [avg(_w0#107) windowspecdefinition(i_category#14, i_brand#10, s_store_name#80, s_company_name#92, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS avg_monthly_sales#1], [i_category#14, i_brand#10, s_store_name#80, s_company_name#92]
+         +- HashAggregate(keys=[i_category#14, i_class#12, i_brand#10, s_store_name#80, s_company_name#92, d_moy#55], functions=[sum(UnscaledValue(ss_sales_price#36))], output=[i_category#14, i_class#12, i_brand#10, s_store_name#80, s_company_name#92, d_moy#55, sum_sales#0, _w0#107])
+            +- HashAggregate(keys=[i_category#14, i_class#12, i_brand#10, s_store_name#80, s_company_name#92, d_moy#55], functions=[partial_sum(UnscaledValue(ss_sales_price#36))], output=[i_category#14, i_class#12, i_brand#10, s_store_name#80, s_company_name#92, d_moy#55, sum#220L])
+               +- Project [i_brand#10, i_class#12, i_category#14, ss_sales_price#36, d_moy#55, s_store_name#80, s_company_name#92]
+                  +- BroadcastHashJoin [ss_store_sk#30L], [s_store_sk#75L], Inner, BuildRight, false
+                     :- Project [i_brand#10, i_class#12, i_category#14, ss_store_sk#30L, ss_sales_price#36, d_moy#55]
+                     :  +- BroadcastHashJoin [ss_sold_date_sk#46L], [d_date_sk#47L], Inner, BuildRight, false
+                     :     :- Project [i_brand#10, i_class#12, i_category#14, ss_store_sk#30L, ss_sales_price#36, ss_sold_date_sk#46L]
+                     :     :  +- BroadcastHashJoin [i_item_sk#2L], [ss_item_sk#25L], Inner, BuildLeft, false
+                     :     :     :- Project [i_item_sk#2L, i_brand#10, i_class#12, i_category#14]
+                     :     :     :  +- Filter (((i_category#14 IN (Books,Electronics,Sports) AND i_class#12 IN (computers,stereo,football)) OR (i_category#14 IN (Men,Jewelry,Women) AND i_class#12 IN (shirts,birdal,dresses))) AND isnotnull(i_item_sk#2L))
+                     :     :     :     +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.item[i_item_sk#2L,i_brand#10,i_class#12,i_category#14] Batched: true, DataFilters: [((i_category#14 IN (Books,Electronics,Sports) AND i_class#12 IN (computers,stereo,football)) OR ..., Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [Or(And(In(i_category, [Books,Electronics,Sports]),In(i_class, [computers,stereo,football])),And(..., ReadSchema: struct<i_item_sk:bigint,i_brand:string,i_class:string,i_category:string>
+                     :     :     +- Project [ss_item_sk#25L, ss_store_sk#30L, ss_sales_price#36, ss_sold_date_sk#46L]
+                     :     :        +- Filter (isnotnull(ss_item_sk#25L) AND isnotnull(ss_store_sk#30L))
+                     :     :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store_sales[ss_item_sk#25L,ss_store_sk#30L,ss_sales_price#36,ss_sold_date_sk#46L] Batched: true, DataFilters: [isnotnull(ss_item_sk#25L), isnotnull(ss_store_sk#30L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [isnotnull(ss_sold_date_sk#46L), dynamicpruning#218 [ss_sold_date_sk#46L]], PushedFilters: [IsNotNull(ss_item_sk), IsNotNull(ss_store_sk)], ReadSchema: struct<ss_item_sk:bigint,ss_store_sk:bigint,ss_sales_price:decimal(7,2)>
+                     :     :                 +- Project [d_date_sk#47L, d_moy#55]
+                     :     :                    +- Filter ((isnotnull(d_year#53) AND (d_year#53 = 1999)) AND isnotnull(d_date_sk#47L))
+                     :     :                       +- Relation[d_date_sk#47L,d_date_id#48,d_date#49,d_month_seq#50,d_week_seq#51,d_quarter_seq#52,d_year#53,d_dow#54,d_moy#55,d_dom#56,d_qoy#57,d_fy_year#58,d_fy_quarter_seq#59,d_fy_week_seq#60,d_day_name#61,d_quarter_name#62,d_holiday#63,d_weekend#64,d_following_holiday#65,d_first_dom#66,d_last_dom#67,d_same_day_ly#68,d_same_day_lq#69,d_current_day#70,... 4 more fields] orc
+                     :     +- Project [d_date_sk#47L, d_moy#55]
+                     :        +- Filter ((isnotnull(d_year#53) AND (d_year#53 = 1999)) AND isnotnull(d_date_sk#47L))
+                     :           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.date_dim[d_date_sk#47L,d_year#53,d_moy#55] Batched: true, DataFilters: [isnotnull(d_year#53), (d_year#53 = 1999), isnotnull(d_date_sk#47L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(d_year), EqualTo(d_year,1999), IsNotNull(d_date_sk)], ReadSchema: struct<d_date_sk:bigint,d_year:int,d_moy:int>
+                     +- Project [s_store_sk#75L, s_store_name#80, s_company_name#92]
+                        +- Filter isnotnull(s_store_sk#75L)
+                           +- FileScan orc tpcds_bin_partitioned_varchar_orc_1000.store[s_store_sk#75L,s_store_name#80,s_company_name#92] Batched: true, DataFilters: [isnotnull(s_store_sk#75L)], Format: ORC, Location: InMemoryFileIndex[hdfs://vcloud-10-13:9000/user/hive/warehouse/tpcds_bin_partitioned_varchar_orc_..., PartitionFilters: [], PushedFilters: [IsNotNull(s_store_sk)], ReadSchema: struct<s_store_sk:bigint,s_store_name:string,s_company_name:string>
+.
+Time taken: 17.965 seconds, Fetched 100 row(s)
