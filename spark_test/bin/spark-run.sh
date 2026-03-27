@@ -1,7 +1,24 @@
 #!/usr/bin/env bash
-set -eu
-source /etc/profile
-source ~/.bashrc
+set -e
+# demo-concurrent 仅本地写报告，跳过 /etc/profile，避免 Git Bash / CI 下加载过慢或失败
+if [ "${1:-}" = "demo-concurrent" ]; then
+    SPARK_RUN_SKIP_PROFILE=1
+fi
+# profile 内 test 在变量已置位时可能返回 1；先关闭 errexit 再加载
+if [ -z "${SPARK_RUN_SKIP_PROFILE:-}" ]; then
+    set +e +u
+    if [ -f /etc/profile ]; then
+        # shellcheck source=/dev/null
+        source /etc/profile
+    fi
+    if [ -f "${HOME}/.bashrc" ]; then
+        # shellcheck source=/dev/null
+        source "${HOME}/.bashrc"
+    fi
+    set -e -u
+else
+    set -e -u
+fi
 
 if [ -z "${omni_home:-}" ]; then
     export omni_home="$(cd "$(dirname "$0")"/.. && pwd)"
@@ -29,18 +46,198 @@ if [ -d "${omni_home}/bin" ]; then
     chmod -R +x "${omni_home}/bin" 2>/dev/null || true
 fi
 
-_spark_home_resolved="$(cd -P "${SPARK_HOME}" 2>/dev/null && pwd || echo "${SPARK_HOME}")"
-spark_version="spark-$(basename "${_spark_home_resolved}" | awk -F'-' '{print $2}')"
-unset _spark_home_resolved
-
 REPORT_LOCK="${omni_home}/report/.hibench-spark.report.lock"
 append_report_line() {
     local line=$1
+    if [ -n "${SPARK_RUN_SKIP_PROFILE:-}" ] || ! command -v flock >/dev/null 2>&1; then
+        printf '%s\n' "$line" >>"$sparkreport_file"
+        return
+    fi
     (
         flock -x 200
         printf '%s\n' "$line" >>"$sparkreport_file"
     ) 200>>"$REPORT_LOCK"
 }
+
+# 与 GNU「ls -1v 文件名」一致的自然序：q1→q2→…→q9→q10→…→q14a→q14b→…→q99（对 basename 做 sort -V 再还原路径，避免把上百路径当参数传给 ls）
+list_sql_files_natural_order_into() {
+    local sql_prefix=$1
+    local -n _out=$2
+    _out=()
+    shopt -s nullglob
+    local cand=( "${sqldir}/${sql_prefix}"*.sql )
+    shopt -u nullglob
+    if [ ${#cand[@]} -eq 0 ]; then
+        return 1
+    fi
+    local line
+    while IFS= read -r line; do
+        [ -n "$line" ] && _out+=( "$line" )
+    done < <(
+        for f in "${cand[@]}"; do
+            printf '%s\t%s\n' "${f##*/}" "$f"
+        done | LC_ALL=C sort -t $'\t' -k1,1V | cut -f2-
+    )
+    return 0
+}
+
+# 与 spark_run_queries 相同的分片与并发结构，仅模拟 SQL 耗时（不调用 spark-sql）
+demo_worker_run_files() {
+    local worker_id=$1
+    local log_prefix=$2
+    local worker_report=$3
+    local elapsed_file=$4
+    shift 4
+    local demo_ver="spark-concurrency-demo"
+    local start_ts end_ts elapsed f fullname filename runname
+    start_ts=$(date +%s)
+    printf '%s\n' "========== worker ${worker_id} start: $(date '+%Y-%m-%d %T') ==========" >>"$worker_report"
+    for f in "$@"; do
+        [ -n "$f" ] || continue
+        fullname=${f##*/}
+        filename=${fullname%.*}
+        runname=${log_prefix}_w${worker_id}_${filename}
+        sleep "0.$((RANDOM % 7 + 2))"
+        printf '%s\n' "Time: $(date "+%Y-%m-%d %T.%3N") ${demo_ver} ${DATA_BASE} application_demo_${worker_id}_${filename} ${runname} Fetched_rows:       10 cost_seconds:   0.$((RANDOM % 8 + 1))" >>"$worker_report"
+    done
+    end_ts=$(date +%s)
+    elapsed=$((end_ts - start_ts))
+    printf '%s\n' "========== worker ${worker_id} end: $(date '+%Y-%m-%d %T')  total_seconds: ${elapsed} ==========" >>"$worker_report"
+    echo "$elapsed" >"$elapsed_file"
+}
+
+demo_concurrent_queries() {
+    local sql=$1
+    local log_prefix=${2:-native}
+    export spec=${spec:-demo-concurrent}
+    mkdir -p "${omni_home}/report"
+
+    local sorted_files=()
+    if ! list_sql_files_natural_order_into "$sql" sorted_files; then
+        echo "demo-concurrent: 未找到匹配 ${sqldir}/${sql}*.sql" >&2
+        return 1
+    fi
+
+    local n=${#sorted_files[@]}
+    local c=${SPARK_CONCURRENCY}
+    local run_ts
+    run_ts=$(date +%Y%m%d%H%M%S)
+    local tmp_dir="${omni_home}/report/.tmp_demo_${log_prefix}_${run_ts}_$$"
+    mkdir -p "$tmp_dir"
+
+    printf '%s\n' "-----------------------------分界线 (demo-concurrent SPARK_CONCURRENCY=${c} n=${n}) -----------------------------" >>"$sparkreport_file"
+
+    if (( c <= 1 || n == 1 )); then
+        local wr="${omni_home}/report/${log_prefix}_w0.report"
+        local elapsed sum_rows
+        demo_worker_run_files 0 "$log_prefix" "$wr" "${tmp_dir}/elapsed_w0" "${sorted_files[@]}"
+        elapsed=$(cat "${tmp_dir}/elapsed_w0")
+        sum_rows=$(printf "%8d" "${n}")
+        append_report_line "Time: $(date "+%Y-%m-%d %T.%3N") spark-concurrency-demo ${DATA_BASE} app_id ${log_prefix}_w0_total Fetched_rows: ${sum_rows} cost_seconds:   ${elapsed}"
+        rm -rf "$tmp_dir"
+        echo "demo-concurrent: 单 worker 报告 ${wr}（n=${n}, c=${c}）" >&2
+        return 0
+    fi
+
+    local k_fwd=$((c / 2))
+    local k_rev=$((c - k_fwd))
+    if (( k_fwd < 1 )); then
+        k_fwd=1
+        k_rev=$((c - 1))
+    fi
+
+    local all_fwd=( "${sorted_files[@]}" )
+    local all_rev=()
+    local i
+    for ((i = n - 1; i >= 0; i--)); do
+        all_rev+=( "${sorted_files[i]}" )
+    done
+
+    local pids=()
+    local worker_ids=()
+    local worker_sql_counts=()
+    local w base wid ef wr st=0
+    local demo_parallel=1
+    case "$(uname -s 2>/dev/null)" in
+        MINGW* | MSYS* | CYGWIN*) demo_parallel=0 ;;
+    esac
+
+    base=0
+    for ((w = 0; w < k_fwd; w++)); do
+        wid=$((base + w))
+        wr="${omni_home}/report/${log_prefix}_w${wid}.report"
+        ef="${tmp_dir}/elapsed_w${wid}"
+        if (( demo_parallel )); then
+            (demo_worker_run_files "$wid" "$log_prefix" "$wr" "$ef" "${all_fwd[@]}") &
+            pids+=( "$!" )
+        else
+            demo_worker_run_files "$wid" "$log_prefix" "$wr" "$ef" "${all_fwd[@]}"
+        fi
+        worker_ids+=( "$wid" )
+        worker_sql_counts+=( "$n" )
+    done
+    base=$k_fwd
+
+    for ((w = 0; w < k_rev; w++)); do
+        wid=$((base + w))
+        wr="${omni_home}/report/${log_prefix}_w${wid}.report"
+        ef="${tmp_dir}/elapsed_w${wid}"
+        if (( demo_parallel )); then
+            (demo_worker_run_files "$wid" "$log_prefix" "$wr" "$ef" "${all_rev[@]}") &
+            pids+=( "$!" )
+        else
+            demo_worker_run_files "$wid" "$log_prefix" "$wr" "$ef" "${all_rev[@]}"
+        fi
+        worker_ids+=( "$wid" )
+        worker_sql_counts+=( "$n" )
+    done
+
+    local pid
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            st=1
+        fi
+    done
+
+    local idx wid cnt elapsed sum_rows
+    for ((idx = 0; idx < ${#worker_ids[@]}; idx++)); do
+        wid=${worker_ids[idx]}
+        cnt=${worker_sql_counts[idx]}
+        ef="${tmp_dir}/elapsed_w${wid}"
+        elapsed="N/A"
+        if [ -f "$ef" ]; then
+            elapsed=$(cat "$ef")
+        fi
+        sum_rows=$(printf "%8d" "${cnt}")
+        append_report_line "Time: $(date "+%Y-%m-%d %T.%3N") spark-concurrency-demo ${DATA_BASE} app_id ${log_prefix}_w${wid}_total Fetched_rows: ${sum_rows} cost_seconds:   ${elapsed}"
+    done
+
+    rm -rf "$tmp_dir"
+    if (( demo_parallel )); then
+        echo "demo-concurrent: 已写入 ${sparkreport_file} 与 ${omni_home}/report/${log_prefix}_w*.report（${#worker_ids[@]} worker 并行）" >&2
+    else
+        echo "demo-concurrent: 已写入（MSYS：worker 顺序执行，分片与 Linux 并行版相同） ${sparkreport_file}" >&2
+    fi
+    return "$st"
+}
+
+if [ "${1:-}" = "demo-concurrent" ]; then
+    demo_concurrent_queries "${2:-}" "native"
+    exit 0
+fi
+
+if [ -z "${SPARK_HOME:-}" ]; then
+    echo "spark-run.sh: 请设置 SPARK_HOME（环境变量或 config.ini）" >&2
+    exit 1
+fi
+if [ ! -x "${SPARK_HOME}/bin/spark-sql" ]; then
+    echo "spark-run.sh: 未找到可执行的 ${SPARK_HOME}/bin/spark-sql" >&2
+    exit 1
+fi
+
+_spark_home_resolved="$(cd -P "${SPARK_HOME}" 2>/dev/null && pwd || echo "${SPARK_HOME}")"
+spark_version="spark-$(basename "${_spark_home_resolved}" | awk -F'-' '{print $2}')"
+unset _spark_home_resolved
 
 echo "-----------------------------分界线-----------------------------" >>"$sparkreport_file"
 
@@ -122,18 +319,11 @@ spark_run_queries() {
     mkdir -p "${omni_home}/logs/spark"
     mkdir -p "${omni_home}/report"
 
-    shopt -s nullglob
-    local files=( "${sqldir}/${sql}"*.sql )
-    shopt -u nullglob
-    if [ ${#files[@]} -eq 0 ]; then
+    local sorted_files=()
+    if ! list_sql_files_natural_order_into "$sql" sorted_files; then
         echo "spark_run_queries: 未找到匹配 ${sqldir}/${sql}*.sql" >&2
         return 1
     fi
-
-    local sorted_files=()
-    while IFS= read -r line; do
-        [ -n "$line" ] && sorted_files+=( "$line" )
-    done < <(ls -1v "${files[@]}")
 
     local n=${#sorted_files[@]}
     local c=$SPARK_CONCURRENCY
@@ -169,48 +359,39 @@ spark_run_queries() {
         k_rev=$((c - 1))
     fi
 
-    local mid=$(( (n + 1) / 2 ))
-    local fwd_slice=("${sorted_files[@]:0:mid}")
-    local rev_slice=("${sorted_files[@]:mid}")
-    local rev_ordered=()
+    # 前半数 worker：每人正序跑全量 SQL；后半数 worker：每人反序跑全量 SQL（同序列表各自独立完整跑一遍）
+    local all_fwd=( "${sorted_files[@]}" )
+    local all_rev=()
     local i
-    for ((i = ${#rev_slice[@]} - 1; i >= 0; i--)); do
-        rev_ordered+=( "${rev_slice[i]}" )
+    for ((i = n - 1; i >= 0; i--)); do
+        all_rev+=( "${sorted_files[i]}" )
     done
 
     local pids=()
     local worker_ids=()
     local worker_sql_counts=()
-    local w j base wid
+    local w base wid
 
     base=0
     for ((w = 0; w < k_fwd; w++)); do
         wid=$((base + w))
-        local batch=()
-        for ((j = w; j < ${#fwd_slice[@]}; j += k_fwd)); do
-            batch+=( "${fwd_slice[j]}" )
-        done
         local wr="${omni_home}/report/${log_prefix}_w${wid}.report"
         local ef="${tmp_dir}/elapsed_w${wid}"
-        (worker_run_files "$wid" "$spark_bin" "$log_prefix" "$wr" "$ef" "${batch[@]}") &
+        (worker_run_files "$wid" "$spark_bin" "$log_prefix" "$wr" "$ef" "${all_fwd[@]}") &
         pids+=( "$!" )
         worker_ids+=( "$wid" )
-        worker_sql_counts+=( "${#batch[@]}" )
+        worker_sql_counts+=( "$n" )
     done
     base=$k_fwd
 
     for ((w = 0; w < k_rev; w++)); do
         wid=$((base + w))
-        local batch=()
-        for ((j = w; j < ${#rev_ordered[@]}; j += k_rev)); do
-            batch+=( "${rev_ordered[j]}" )
-        done
         local wr="${omni_home}/report/${log_prefix}_w${wid}.report"
         local ef="${tmp_dir}/elapsed_w${wid}"
-        (worker_run_files "$wid" "$spark_bin" "$log_prefix" "$wr" "$ef" "${batch[@]}") &
+        (worker_run_files "$wid" "$spark_bin" "$log_prefix" "$wr" "$ef" "${all_rev[@]}") &
         pids+=( "$!" )
         worker_ids+=( "$wid" )
-        worker_sql_counts+=( "${#batch[@]}" )
+        worker_sql_counts+=( "$n" )
     done
 
     local pid st=0
@@ -299,7 +480,7 @@ clear_cache() {
 }
 
 main() {
-    local usage="Usage: bash ${0##*/} [spark|omni|all|nmonclose|-h] [times] [sql_prefix] [spec]  # 并发数见 config.ini: SPARK_CONCURRENCY"
+    local usage="Usage: bash ${0##*/} [demo-concurrent [sql_glob_prefix]|spark|omni|all|nmonclose|-h] [times] [sql_prefix] [spec]  # 并发: SPARK_CONCURRENCY"
     local RunArgs=${1:-}
     local Times=${2:-}
     local sql=${3:-}
