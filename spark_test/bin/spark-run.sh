@@ -59,7 +59,7 @@ append_report_line() {
     ) 200>>"$REPORT_LOCK"
 }
 
-# 与 GNU「ls -1v 文件名」一致的自然序：q1→q2→…→q9→q10→…→q14a→q14b→…→q99（对 basename 做 sort -V 再还原路径，避免把上百路径当参数传给 ls）
+# 与 GNU「ls -1v 文件名」一致的自然序：q1→q2→…→q9→q10→…→q14a→q14b→…→q99（对 basename 做sort -V 再还原路径，避免把上百路径当参数传给 ls）
 list_sql_files_natural_order_into() {
     local sql_prefix=$1
     local -n _out=$2
