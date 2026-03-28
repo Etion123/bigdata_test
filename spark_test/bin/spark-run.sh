@@ -89,8 +89,7 @@ demo_worker_run_files() {
     local elapsed_file=$4
     shift 4
     local demo_ver="spark-concurrency-demo"
-    local start_ts end_ts elapsed f fullname filename runname
-    start_ts=$(date +%s)
+    local sum_sql_seconds=0 sec f fullname filename runname
     printf '%s\n' "========== worker ${worker_id} start: $(date '+%Y-%m-%d %T') ==========" >>"$worker_report"
     for f in "$@"; do
         [ -n "$f" ] || continue
@@ -98,12 +97,12 @@ demo_worker_run_files() {
         filename=${fullname%.*}
         runname=${log_prefix}_w${worker_id}_${filename}
         sleep "0.$((RANDOM % 7 + 2))"
-        printf '%s\n' "Time: $(date "+%Y-%m-%d %T.%3N") ${demo_ver} ${DATA_BASE} application_demo_${worker_id}_${filename} ${runname} Fetched_rows:       10 cost_seconds:   0.$((RANDOM % 8 + 1))" >>"$worker_report"
+        sec="0.$((RANDOM % 8 + 1))"
+        sum_sql_seconds=$(awk -v s="${sum_sql_seconds:-0}" -v t="$sec" 'BEGIN { printf "%.3f", s + t }')
+        printf '%s\n' "Time: $(date "+%Y-%m-%d %T.%3N") ${demo_ver} ${DATA_BASE} application_demo_${worker_id}_${filename} ${runname} Fetched_rows:       10 cost_seconds:   ${sec}" >>"$worker_report"
     done
-    end_ts=$(date +%s)
-    elapsed=$((end_ts - start_ts))
-    printf '%s\n' "========== worker ${worker_id} end: $(date '+%Y-%m-%d %T')  total_seconds: ${elapsed} ==========" >>"$worker_report"
-    echo "$elapsed" >"$elapsed_file"
+    printf '%s\n' "========== worker ${worker_id} end: $(date '+%Y-%m-%d %T')  total_seconds: ${sum_sql_seconds} (sum of per-sql cost) ==========" >>"$worker_report"
+    echo "$sum_sql_seconds" >"$elapsed_file"
 }
 
 demo_concurrent_queries() {
@@ -264,6 +263,7 @@ run_one_sql() {
     local log_prefix=$3
     local worker_id=$4
     local worker_report=$5
+    local cost_acc_name=${6:-}
     local fullname=${file##*/}
     local filename=${fullname%.*}
     local runname=${log_prefix}_w${worker_id}_${filename}
@@ -273,7 +273,12 @@ run_one_sql() {
     timeout "$TASK_TIMEOUT" "$spark_bin" "${spark_native[@]}" --database "$DATA_BASE" --name "${spec}_${runname}" -f "$file" 1>"$spark_res" 2>"$spark_log"
     local ret=$?
     local sparkcost_time
+    local num_cost='^[0-9]+([.][0-9]+)?$'
     sparkcost_time=$(spark_gettime "$ret" "${spark_log}")
+    if [[ -n "$cost_acc_name" ]] && [[ ${sparkcost_time} =~ ${num_cost} ]]; then
+        local -n _sql_cost_sum=$cost_acc_name
+        _sql_cost_sum=$(awk -v s="${_sql_cost_sum:-0}" -v t="$sparkcost_time" 'BEGIN { printf "%.3f", s + t }')
+    fi
     local row_raw
     row_raw=$(grep '^Time taken: .* seconds, Fetched .* row(s)' "$spark_log" 2>/dev/null | awk '{print $6}' | tail -1)
     local rows
@@ -295,19 +300,15 @@ worker_run_files() {
     local worker_report=$4
     local elapsed_file=$5
     shift 5
-    local start_ts
-    start_ts=$(date +%s)
+    local sum_sql_seconds=0
     printf '%s\n' "========== worker ${worker_id} start: $(date '+%Y-%m-%d %T') ==========" >>"$worker_report"
     local f
     for f in "$@"; do
         [ -n "$f" ] || continue
-        run_one_sql "$f" "$spark_bin" "$log_prefix" "$worker_id" "$worker_report"
+        run_one_sql "$f" "$spark_bin" "$log_prefix" "$worker_id" "$worker_report" sum_sql_seconds
     done
-    local end_ts
-    end_ts=$(date +%s)
-    local elapsed=$(( end_ts - start_ts ))
-    printf '%s\n' "========== worker ${worker_id} end: $(date '+%Y-%m-%d %T')  total_seconds: ${elapsed} ==========" >>"$worker_report"
-    echo "$elapsed" >"$elapsed_file"
+    printf '%s\n' "========== worker ${worker_id} end: $(date '+%Y-%m-%d %T')  total_seconds: ${sum_sql_seconds} (sum of per-sql cost) ==========" >>"$worker_report"
+    echo "$sum_sql_seconds" >"$elapsed_file"
 }
 
 spark_run_queries() {
@@ -335,19 +336,15 @@ spark_run_queries() {
     if (( c <= 1 || n == 1 )); then
         local wr="${omni_home}/report/${log_prefix}_w0.report"
         local file
-        local start_ts
-        start_ts=$(date +%s)
+        local sum_sql_seconds=0
         printf '%s\n' "========== worker 0 start: $(date '+%Y-%m-%d %T') ==========" >>"$wr"
         for file in "${sorted_files[@]}"; do
-            run_one_sql "$file" "$spark_bin" "$log_prefix" 0 "$wr"
+            run_one_sql "$file" "$spark_bin" "$log_prefix" 0 "$wr" sum_sql_seconds
         done
-        local end_ts
-        end_ts=$(date +%s)
-        local elapsed=$(( end_ts - start_ts ))
-        printf '%s\n' "========== worker 0 end: $(date '+%Y-%m-%d %T')  total_seconds: ${elapsed} ==========" >>"$wr"
+        printf '%s\n' "========== worker 0 end: $(date '+%Y-%m-%d %T')  total_seconds: ${sum_sql_seconds} (sum of per-sql cost) ==========" >>"$wr"
         local sum_rows
         sum_rows=$(printf "%8d" "${n}")
-        append_report_line "Time: $(date "+%Y-%m-%d %T.%3N") ${spark_version} ${DATA_BASE} app_id ${log_prefix}_w0_total Fetched_rows: ${sum_rows} cost_seconds:   ${elapsed}"
+        append_report_line "Time: $(date "+%Y-%m-%d %T.%3N") ${spark_version} ${DATA_BASE} app_id ${log_prefix}_w0_total Fetched_rows: ${sum_rows} cost_seconds:   ${sum_sql_seconds}"
         rm -rf "$tmp_dir"
         return 0
     fi
