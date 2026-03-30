@@ -37,6 +37,9 @@ source "$CONFIG_INI"
 : "${DATA_BASE:=tpcds_bin_partitioned_orc_1000}"
 : "${SQL_SUBDIR:=sqls/spark-queries-tpcds}"
 : "${SPARK_REPORT_REL:=report/hibench-spark.report}"
+if [[ -z "${SQL_EXPLICIT_LIST+x}" ]]; then
+    SQL_EXPLICIT_LIST=()
+fi
 
 sqldir="${omni_home}/${SQL_SUBDIR}"
 sparkreport_file="${omni_home}/${SPARK_REPORT_REL}"
@@ -81,6 +84,52 @@ list_sql_files_natural_order_into() {
     return 0
 }
 
+# 若 config.ini 中 SQL_EXPLICIT_LIST 非空，只跑列出的查询（不含 .sql），再按自然序排；否则按 sql_prefix 通配
+resolve_sorted_sql_files_into() {
+    local sql_prefix=$1
+    local -n _out=$2
+    _out=()
+    if [ ${#SQL_EXPLICIT_LIST[@]} -gt 0 ]; then
+        local missing=() name path
+        local -A _seen
+        for name in "${SQL_EXPLICIT_LIST[@]}"; do
+            name="${name%.sql}"
+            name="${name//[[:space:]]/}"
+            [ -z "$name" ] && continue
+            path="${sqldir}/${name}.sql"
+            if [[ -n "${_seen[$path]:-}" ]]; then
+                continue
+            fi
+            _seen[$path]=1
+            if [ ! -f "$path" ]; then
+                missing+=( "$path" )
+                continue
+            fi
+            _out+=( "$path" )
+        done
+        if [ ${#missing[@]} -gt 0 ]; then
+            echo "spark-run.sh: SQL_EXPLICIT_LIST 中有不存在的文件:" >&2
+            printf '%s\n' "${missing[@]}" >&2
+            return 1
+        fi
+        if [ ${#_out[@]} -eq 0 ]; then
+            echo "spark-run.sh: SQL_EXPLICIT_LIST 未解析到任何有效文件" >&2
+            return 1
+        fi
+        local sorted=()
+        while IFS= read -r line; do
+            [ -n "$line" ] && sorted+=( "$line" )
+        done < <(
+            for f in "${_out[@]}"; do
+                printf '%s\t%s\n' "${f##*/}" "$f"
+            done | LC_ALL=C sort -t $'\t' -k1,1V | cut -f2-
+        )
+        _out=("${sorted[@]}")
+        return 0
+    fi
+    list_sql_files_natural_order_into "$sql_prefix" _out
+}
+
 # 与 spark_run_queries 相同的分片与并发结构，仅模拟 SQL 耗时（不调用 spark-sql）
 demo_worker_run_files() {
     local worker_id=$1
@@ -112,8 +161,8 @@ demo_concurrent_queries() {
     mkdir -p "${omni_home}/report"
 
     local sorted_files=()
-    if ! list_sql_files_natural_order_into "$sql" sorted_files; then
-        echo "demo-concurrent: 未找到匹配 ${sqldir}/${sql}*.sql" >&2
+    if ! resolve_sorted_sql_files_into "$sql" sorted_files; then
+        echo "demo-concurrent: 未解析到 SQL（检查 ${sqldir} 下通配 ${sql}*.sql 或 config.ini 的 SQL_EXPLICIT_LIST）" >&2
         return 1
     fi
 
@@ -322,8 +371,8 @@ spark_run_queries() {
     mkdir -p "${omni_home}/report"
 
     local sorted_files=()
-    if ! list_sql_files_natural_order_into "$sql" sorted_files; then
-        echo "spark_run_queries: 未找到匹配 ${sqldir}/${sql}*.sql" >&2
+    if ! resolve_sorted_sql_files_into "$sql" sorted_files; then
+        echo "spark_run_queries: 未解析到 SQL（检查 ${sqldir} 下通配 ${sql}*.sql 或 config.ini 的 SQL_EXPLICIT_LIST）" >&2
         return 1
     fi
 
@@ -479,7 +528,7 @@ clear_cache() {
 }
 
 main() {
-    local usage="Usage: bash ${0##*/} [demo-concurrent [sql_glob_prefix]|spark|omni|all|nmonclose|-h] [times] [sql_prefix] [spec]  # 并发: SPARK_CONCURRENCY"
+    local usage="Usage: bash ${0##*/} [demo-concurrent [sql_glob_prefix]|spark|omni|all|nmonclose|-h] [times] [sql_prefix] [spec]  # 指定若干查询见 config.ini: SQL_EXPLICIT_LIST"
     local RunArgs=${1:-}
     local Times=${2:-}
     local sql=${3:-}
