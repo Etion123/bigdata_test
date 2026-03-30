@@ -126,7 +126,8 @@ demo_concurrent_queries() {
 
     printf '%s\n' "-----------------------------分界线 (demo-concurrent SPARK_CONCURRENCY=${c} n=${n}) -----------------------------" >>"$sparkreport_file"
 
-    if (( c <= 1 || n == 1 )); then
+    # 仅当并发数<=1 时走单 worker；仅 1 条 SQL 仍要起满 SPARK_CONCURRENCY 个 worker（每人各跑一遍该条）
+    if (( c <= 1 )); then
         local wr="${omni_home}/report/${log_prefix}_w0.report"
         local elapsed sum_rows
         demo_worker_run_files 0 "$log_prefix" "$wr" "${tmp_dir}/elapsed_w0" "${sorted_files[@]}"
@@ -333,7 +334,8 @@ spark_run_queries() {
     local tmp_dir="${omni_home}/report/.tmp_${log_prefix}_${run_ts}_$$"
     mkdir -p "$tmp_dir"
 
-    if (( c <= 1 || n == 1 )); then
+    # 仅当并发数<=1 时走单 worker；仅 1 条 SQL 仍要起满 SPARK_CONCURRENCY 个 worker
+    if (( c <= 1 )); then
         local wr="${omni_home}/report/${log_prefix}_w0.report"
         local file
         local sum_sql_seconds=0
